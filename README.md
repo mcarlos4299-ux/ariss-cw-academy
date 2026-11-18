@@ -11,3 +11,7 @@ Static installable web app adapted from the existing Google Apps Script Index.ht
 Offline access becomes available after the site loads successfully online and caches its assets.
 
 The original Apps Script deployment remains unchanged.
+
+
+## Version 2.1
+On narrow screens the activity appears first, progress second, and Mission Guide becomes an expandable Help / Instructions section. The Morse key now reads “Press & Hold to Send Morse” and its check button reads “Check My Morse.” Desktop layout is unchanged. Service-worker cache version bumped to refresh installed PWA.
