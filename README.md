@@ -15,3 +15,5 @@ The original Apps Script deployment remains unchanged.
 
 ## Version 2.1
 On narrow screens the activity appears first, progress second, and Mission Guide becomes an expandable Help / Instructions section. The Morse key now reads “Press & Hold to Send Morse” and its check button reads “Check My Morse.” Desktop layout is unchanged. Service-worker cache version bumped to refresh installed PWA.
+
+Version 2.1.1: Restores always-visible desktop Mission Guide while preserving mobile collapsible help.
