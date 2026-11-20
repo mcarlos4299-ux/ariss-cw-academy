@@ -46,6 +46,7 @@
 .live-label{font-size:12px;color:#a8c3dc}.live-box button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:740px){.live-box{padding:12px}.live-output{font-size:21px}}
 
+/* Revision 5: tone calibration and separate microphone meter. */
 /* Live decoder: one translation workspace; force-hide inherited exercise controls. */
 .game-panel:has(#live:not(.hidden)) > .controls,
 .game-panel:has(#live:not(.hidden)) > #signal,
@@ -97,10 +98,10 @@
   <div class="controls"><button id="liveStart" class="primary">🎙 Start Listening</button><button id="liveStop" disabled>Stop</button><button id="liveClear">Clear Text</button></div>
   <div class="controls"><label for="liveToneMode">Tone</label><select id="liveToneMode"><option value="auto">Auto detect (400–1000 Hz)</option><option value="manual">Manual frequency</option></select><label id="liveFreqLabel" for="liveFreq" class="hidden">Frequency</label><input id="liveFreq" class="hidden" type="range" min="400" max="1000" step="25" value="650"><span id="liveFreqValue" class="live-label">— Hz</span></div>
   <div class="controls"><span id="liveLamp" class="light" aria-label="Signal indicator"></span><span id="liveSignalText" class="live-label">No signal</span><div class="live-meter"><div id="liveMeterFill"></div></div><span id="liveWpm" class="live-label">Speed: calibrating…</span></div>
-  <div class="live-controls-secondary"><label for="liveSensitivityMode">Sensitivity</label><select id="liveSensitivityMode"><option value="auto">Auto calibrate</option><option value="manual">Manual</option></select><label for="liveSensitivity" id="liveSensitivityLabel" class="hidden">Threshold</label><input type="range" id="liveSensitivity" class="hidden" min="-100" max="-35" value="-84" step="1"><span id="liveSensitivityValue">Calibrating…</span></div><div id="liveDiagnostic" class="live-diagnostic">Tone level: — · Frequency: — · Gate: off · Pulses: 0</div>
+  <div class="live-controls-secondary"><label for="liveSensitivityMode">Sensitivity</label><select id="liveSensitivityMode"><option value="auto">Auto calibrate</option><option value="manual">Manual</option></select><label for="liveSensitivity" id="liveSensitivityLabel" class="hidden">Threshold</label><input type="range" id="liveSensitivity" class="hidden" min="-125" max="-35" value="-100" step="1"><span id="liveSensitivityValue">Calibrating…</span></div><div class="live-controls-secondary"><button id="liveCalibrate">Calibrate Microphone</button><span id="liveCalStatus" class="live-label">Optional: measure silence, then play a tone</span></div><div id="liveDiagnostic" class="live-diagnostic">Mic: — · Tone: — · Frequency: — · Gate: off · Pulses: 0</div>
   <div id="liveStatus" class="live-status" role="status" aria-live="polite">Microphone off. Tap Start Listening to begin.</div>
   <div class="live-translation"><div class="live-label">LIVE TRANSLATION · CURRENT MORSE PATTERN</div><div id="liveMorse" class="live-morse">—</div><div class="live-label">MESSAGE</div><div aria-live="polite" class="live-output" id="liveOutput"></div></div>
-  <p class="muted" style="font-size:12px">Tip: Play clear Morse audio from a second device. Auto mode estimates the tone, sensitivity, and character speed. Allow a few characters for calibration; noisy or Farnsworth recordings may require manual adjustments. If the bar moves but Gate stays off, increase sensitivity. If Gate stays ON during pauses, reduce sensitivity. Pulses should increase as dots and dashes finish. A video playing on the same device may not reach the microphone.</p>
+  <p class="muted" style="font-size:12px">Tip: For calibration, press Start Listening, then Calibrate Microphone. Keep the room quiet for 2.5 seconds and play a tone for 5 seconds. Play clear Morse audio from a second device. Auto mode estimates the tone, sensitivity, and character speed. Allow a few characters for calibration; noisy or Farnsworth recordings may require manual adjustments. If the bar moves but Gate stays off, increase sensitivity. If Gate stays ON during pauses, reduce sensitivity. Pulses should increase as dots and dashes finish. A video playing on the same device may not reach the microphone.</p>
 </section><div class="feedback" aria-live="polite" id="feedback"></div></main><aside class="panel progress-panel"><h2>Operator Progress</h2><p class="muted">Session stats (no student information collected)</p><div class="stats"><div class="stat"><b id="correct">0</b><span>Correct</span></div><div class="stat"><b id="attempts">0</b><span>Attempts</span></div><div class="stat"><b id="streak">0</b><span>Current streak</span></div><div class="stat"><b id="accuracy">—</b><span>Accuracy</span></div></div><h3>Mission briefing</h3><p class="muted" id="brief">Start with individual characters, then decode a short transmission. CW means continuous wave, a common name for Morse code radio operation.</p><button id="reset">Reset session</button></aside></div><div class="footer">ARISS-themed educational CW practice • Audio starts after you interact with the page</div></div><script>
 const C={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..','0':'-----','1':'.----','2':'..---','3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.'};
 const keys=Object.keys(C),missions=['ISS','ARISS','RADIO','SPACE','CQ','73'];let mode='learn',target='A',count=0,correct=0,streak=0,pattern='',start=0,down=false,ctx=null,osc=null,gain=null,playToken=0,missionIndex=0,locked=false;
@@ -139,7 +140,8 @@ const LIVE_REVERSE=Object.fromEntries(Object.entries(C).map(([k,v])=>[v,k]));
 let liveStream=null,liveAudio=null,liveSource=null,liveAnalyser=null,liveTimer=null;
 let liveRunning=false,liveIsTone=false,liveLastEdge=0,liveSequence='',liveText='',liveLastGap='',liveToneHz=0,liveNoise=0;
 let liveLastSample=0,liveHighCount=0,liveLowCount=0,liveCandidate=0,livePulses=0,livePeakDb=-120;
-let liveDotMs=120,liveDurations=[],liveGapDurations=[],liveFloor=-100,liveThreshold=-84,liveCalibrated=false,liveLastDetectedAt=0;
+let liveCalStage=0,liveCalStart=0,liveCalNoise=[],liveCalTone=[],liveCalibration=null;
+let liveDotMs=120,liveDurations=[],liveGapDurations=[],liveFloor=-120,liveThreshold=-105,liveCalibrated=false,liveLastDetectedAt=0;
 const liveUnit=()=>liveDotMs;
 function liveMedian(a){const b=[...a].sort((x,y)=>x-y);return b.length?b[Math.floor(b.length/2)]:0}
 function liveLearnTiming(duration){
@@ -153,7 +155,7 @@ function liveLearnTiming(duration){
 function liveGapLimit(){return liveUnit()*2.35}
 function liveWordLimit(){return liveUnit()*5.5}
 function liveStatus(message){$('liveStatus').textContent=message}
-function liveResetTiming(){liveIsTone=false;liveLastEdge=performance.now();liveSequence='';liveLastGap='';liveHighCount=0;liveLowCount=0;liveCandidate=0;liveLastSample=0;livePulses=0;livePeakDb=-120;liveDotMs=120;liveDurations=[];liveGapDurations=[];liveFloor=-100;liveThreshold=-84;liveCalibrated=false;liveLastDetectedAt=0;$('liveMorse').textContent='—';$('liveLamp').classList.remove('on');$('liveSignalText').textContent='No signal'}
+function liveResetTiming(){liveIsTone=false;liveLastEdge=performance.now();liveSequence='';liveLastGap='';liveHighCount=0;liveLowCount=0;liveCandidate=0;liveLastSample=0;livePulses=0;livePeakDb=-120;liveDotMs=120;liveDurations=[];liveGapDurations=[];liveFloor=-120;liveThreshold=-105;liveCalibrated=false;liveLastDetectedAt=0;$('liveMorse').textContent='—';$('liveLamp').classList.remove('on');$('liveSignalText').textContent='Microphone off'}
 function liveRender(){ $('liveOutput').textContent=liveText; $('liveMorse').textContent=liveSequence?pretty(liveSequence):'—'; }
 function liveCommit(){if(!liveSequence)return;const letter=LIVE_REVERSE[liveSequence]||'□';liveText+=letter;liveSequence='';liveRender()}
 function liveToneTransition(on,now){
@@ -168,16 +170,19 @@ function liveToneTransition(on,now){
    else if(duration>=liveGapLimit())liveCommit();
  }
  liveIsTone=on;liveLastEdge=now;
- $('liveLamp').classList.toggle('on',on);$('liveSignalText').textContent=on?'Tone detected':'Waiting for tone';
+ $('liveLamp').classList.toggle('on',on);$('liveSignalText').textContent=on?'Signal detected':'Listening';
 }
 function liveAnalyze(){
  if(!liveRunning||!liveAnalyser||!liveAudio)return;
  const now=performance.now(),sampleRate=liveAudio.sampleRate,fftSize=liveAnalyser.fftSize;
  const bins=new Float32Array(liveAnalyser.frequencyBinCount);liveAnalyser.getFloatFrequencyData(bins);
+ const wave=new Float32Array(liveAnalyser.fftSize);liveAnalyser.getFloatTimeDomainData(wave);
+ let power=0;for(const v of wave)power+=v*v;
+ const micDb=20*Math.log10(Math.max(1e-9,Math.sqrt(power/wave.length)));
  const binHz=sampleRate/fftSize,manual=$('liveToneMode').value==='manual';
  let selectedHz=manual?Number($('liveFreq').value):liveToneHz||650;
- let bestDb=-120,bestHz=selectedHz;
- const scan=(lo,hi)=>{let max=-120,hz=lo;for(let i=Math.max(1,Math.ceil(lo/binHz));i<=Math.min(bins.length-1,Math.floor(hi/binHz));i++){if(bins[i]>max){max=bins[i];hz=i*binHz}}return {db:max,hz}};
+ let bestDb=-130,bestHz=selectedHz;
+ const scan=(lo,hi)=>{let max=-130,hz=lo;for(let i=Math.max(1,Math.ceil(lo/binHz));i<=Math.min(bins.length-1,Math.floor(hi/binHz));i++){if(bins[i]>max){max=bins[i];hz=i*binHz}}return {db:max,hz}};
  if(manual){const peak=scan(Math.max(350,selectedHz-35),Math.min(1050,selectedHz+35));bestDb=peak.db;bestHz=selectedHz}
  else{
    const wide=scan(400,1000);
@@ -189,22 +194,34 @@ function liveAnalyze(){
  }
  const displayedHz=manual?selectedHz:liveToneHz;
  $('liveFreqValue').textContent=(displayedHz?Math.round(displayedHz):'—')+' Hz';
- // Conservative initial threshold. The dB meter helps users adjust distance/volume.
+ // Calibrate the actual filtered tone level; do not confuse microphone RMS with tone-bin dB.
+ if(liveCalStage===1){
+   liveCalNoise.push(bestDb);
+   if(now-liveCalStart>=2500){liveCalStage=2;liveCalStart=now;$('liveCalStatus').textContent='Now play a clear Morse tone for 5 seconds…';}
+ }else if(liveCalStage===2){
+   liveCalTone.push(bestDb);
+   if(now-liveCalStart>=5000){
+     const noise=liveMedian(liveCalNoise), sorted=[...liveCalTone].sort((a,b)=>a-b);
+     const tone=sorted[Math.floor(sorted.length*.85)]??noise;
+     liveCalStage=0;
+     if(tone-noise>=5){liveCalibration={noise,tone};liveThreshold=Math.max(-128,Math.min(-25,noise+(tone-noise)*.48));$('liveCalStatus').textContent='Calibrated: noise '+noise.toFixed(0)+' dB · tone '+tone.toFixed(0)+' dB';}
+     else {$('liveCalStatus').textContent='Tone too close to noise. Try louder audio or a quieter room.';}
+   }
+ }
  const automatic=$('liveSensitivityMode').value==='auto';
- // Track background when the gate is closed; do not train on strong tones.
- if(!liveIsTone){
+ if(!liveIsTone && !liveCalStage){
    if(!liveCalibrated){liveFloor=bestDb;liveCalibrated=true;}
-   else if(bestDb<liveFloor+8){liveFloor=liveFloor*.96+bestDb*.04;}
-   else if(bestDb<liveFloor){liveFloor=liveFloor*.92+bestDb*.08;}
+   else if(bestDb<liveFloor+5)liveFloor=liveFloor*.98+bestDb*.02;
  }
  if(automatic){
-   const proposed=Math.max(-99,Math.min(-38,liveFloor+11));
-   liveThreshold=liveThreshold*.88+proposed*.12;
+   const proposed=liveCalibration?liveCalibration.noise+(liveCalibration.tone-liveCalibration.noise)*.48:Math.max(-125,Math.min(-35,liveFloor+9));
+   liveThreshold=liveThreshold*.92+proposed*.08;
    $('liveSensitivityValue').textContent='Auto '+Math.round(liveThreshold)+' dB';
  }else liveThreshold=Number($('liveSensitivity').value);
  const threshold=liveThreshold;
- const detected=bestDb>(liveIsTone?threshold-3:threshold+3);
- const meter=Math.max(0,Math.min(100,(bestDb+95)*2.1));$('liveMeterFill').style.width=meter+'%';$('liveDiagnostic').textContent='Tone: '+(Number.isFinite(bestDb)?bestDb.toFixed(0)+' dB':'—')+' · Frequency: '+(Math.round(bestHz)||'—')+' Hz · Gate: '+(liveIsTone?'ON':'off')+' · Pulses: '+livePulses;
+ const detected=bestDb>(liveIsTone?threshold-2:threshold+2);
+ const meter=Math.max(0,Math.min(100,(micDb+80)*2));$('liveMeterFill').style.width=meter+'%';
+ $('liveDiagnostic').textContent='Mic: '+micDb.toFixed(0)+' dBFS · Tone: '+bestDb.toFixed(0)+' dB · Threshold: '+threshold.toFixed(0)+' dB · Frequency: '+Math.round(bestHz)+' Hz · Gate: '+(liveIsTone?'ON':'off')+' · Pulses: '+livePulses;
  if(detected){liveHighCount++;liveLowCount=0}else{liveLowCount++;liveHighCount=0}
  // Require two consistent frames to suppress brief background transients.
  if(!liveIsTone&&liveHighCount>=2)liveToneTransition(true,now);
@@ -219,9 +236,9 @@ async function startLive(){
  try{
    liveStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
    liveAudio=new(window.AudioContext||window.webkitAudioContext)();await liveAudio.resume();
-   liveSource=liveAudio.createMediaStreamSource(liveStream);liveAnalyser=liveAudio.createAnalyser();liveAnalyser.fftSize=4096;liveAnalyser.smoothingTimeConstant=.1;
+   liveSource=liveAudio.createMediaStreamSource(liveStream);liveAnalyser=liveAudio.createAnalyser();liveAnalyser.fftSize=4096;liveAnalyser.minDecibels=-130;liveAnalyser.maxDecibels=-20;liveAnalyser.smoothingTimeConstant=.1;
    liveSource.connect(liveAnalyser); // Do not route mic to speakers: prevents feedback.
-   liveRunning=true;liveToneHz=0;liveResetTiming();liveStatus('Listening. Play a Morse tone on another device or use an audible keyer.');
+   liveRunning=true;liveToneHz=0;liveResetTiming();$('liveSignalText').textContent='Listening';liveStatus('Listening. Play a Morse tone on another device or use an audible keyer.');
    $('liveStop').disabled=false;liveTimer=setInterval(liveAnalyze,20);
  }catch(err){liveStatus('Could not start microphone: '+(err?.message||'Permission denied or unavailable')+'. Check browser permissions.');await stopLive()}
 }
@@ -231,13 +248,14 @@ async function stopLive(){
  if(liveStream){liveStream.getTracks().forEach(track=>track.stop());liveStream=null}
  try{liveSource?.disconnect()}catch{}liveSource=null;liveAnalyser=null;
  if(liveAudio){const old=liveAudio;liveAudio=null;try{await old.close()}catch{}}
- $('liveStart').disabled=false;$('liveStop').disabled=true;$('liveLamp').classList.remove('on');$('liveSignalText').textContent='Microphone off';$('liveMeterFill').style.width='0%';$('liveDiagnostic').textContent='Tone level: — · Frequency: — · Gate: off · Pulses: 0';liveStatus('Microphone off. Tap Start Listening to begin.');
+ $('liveStart').disabled=false;$('liveStop').disabled=true;$('liveLamp').classList.remove('on');$('liveSignalText').textContent='Microphone off';liveCalStage=0;$('liveMeterFill').style.width='0%';$('liveDiagnostic').textContent='Mic: — · Tone: — · Frequency: — · Gate: off · Pulses: 0';liveStatus('Microphone off. Tap Start Listening to begin.');
 }
 $('liveStart').addEventListener('click',startLive);$('liveStop').addEventListener('click',stopLive);
 $('liveClear').addEventListener('click',()=>{liveText='';liveResetTiming();liveRender()});
 $('liveToneMode').addEventListener('change',()=>{const manual=$('liveToneMode').value==='manual';$('liveFreq').classList.toggle('hidden',!manual);$('liveFreqLabel').classList.toggle('hidden',!manual);liveToneHz=0;liveResetTiming();$('liveFreqValue').textContent=manual?$('liveFreq').value+' Hz':'— Hz'});
 $('liveSensitivity').addEventListener('input',()=>{$('liveSensitivityValue').textContent=$('liveSensitivity').value+' dB'});
 $('liveSensitivityMode').addEventListener('change',()=>{const manual=$('liveSensitivityMode').value==='manual';$('liveSensitivity').classList.toggle('hidden',!manual);$('liveSensitivityLabel').classList.toggle('hidden',!manual);$('liveSensitivityValue').textContent=manual?$('liveSensitivity').value+' dB':'Auto calibrating…';});
+$('liveCalibrate').addEventListener('click',()=>{if(!liveRunning){$('liveCalStatus').textContent='Start Listening first.';return}liveCalibration=null;liveCalNoise=[];liveCalTone=[];liveCalStage=1;liveCalStart=performance.now();$('liveCalStatus').textContent='Stay quiet for 2.5 seconds…';});
 $('liveFreq').addEventListener('input',()=>{$('liveFreqValue').textContent=$('liveFreq').value+' Hz';liveResetTiming()});
 $('speed').addEventListener('change',()=>{if(liveRunning)liveResetTiming()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&liveRunning)stopLive()});
