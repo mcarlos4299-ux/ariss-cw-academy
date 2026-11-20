@@ -96,11 +96,11 @@
   
   <div class="controls"><button id="liveStart" class="primary">🎙 Start Listening</button><button id="liveStop" disabled>Stop</button><button id="liveClear">Clear Text</button></div>
   <div class="controls"><label for="liveToneMode">Tone</label><select id="liveToneMode"><option value="auto">Auto detect (400–1000 Hz)</option><option value="manual">Manual frequency</option></select><label id="liveFreqLabel" for="liveFreq" class="hidden">Frequency</label><input id="liveFreq" class="hidden" type="range" min="400" max="1000" step="25" value="650"><span id="liveFreqValue" class="live-label">— Hz</span></div>
-  <div class="controls"><span id="liveLamp" class="light" aria-label="Signal indicator"></span><span id="liveSignalText" class="live-label">No signal</span><div class="live-meter"><div id="liveMeterFill"></div></div><span id="liveWpm" class="live-label">Timing: 10 WPM</span></div>
-  <div class="live-controls-secondary"><label for="liveSensitivity">Detection sensitivity</label><input type="range" id="liveSensitivity" min="-85" max="-35" value="-68" step="1"><span id="liveSensitivityValue">-68 dB</span></div><div id="liveDiagnostic" class="live-diagnostic">Tone level: — · Frequency: — · Gate: off · Pulses: 0</div>
+  <div class="controls"><span id="liveLamp" class="light" aria-label="Signal indicator"></span><span id="liveSignalText" class="live-label">No signal</span><div class="live-meter"><div id="liveMeterFill"></div></div><span id="liveWpm" class="live-label">Speed: calibrating…</span></div>
+  <div class="live-controls-secondary"><label for="liveSensitivityMode">Sensitivity</label><select id="liveSensitivityMode"><option value="auto">Auto calibrate</option><option value="manual">Manual</option></select><label for="liveSensitivity" id="liveSensitivityLabel" class="hidden">Threshold</label><input type="range" id="liveSensitivity" class="hidden" min="-100" max="-35" value="-84" step="1"><span id="liveSensitivityValue">Calibrating…</span></div><div id="liveDiagnostic" class="live-diagnostic">Tone level: — · Frequency: — · Gate: off · Pulses: 0</div>
   <div id="liveStatus" class="live-status" role="status" aria-live="polite">Microphone off. Tap Start Listening to begin.</div>
   <div class="live-translation"><div class="live-label">LIVE TRANSLATION · CURRENT MORSE PATTERN</div><div id="liveMorse" class="live-morse">—</div><div class="live-label">MESSAGE</div><div aria-live="polite" class="live-output" id="liveOutput"></div></div>
-  <p class="muted" style="font-size:12px">Tip: Begin with a clean 10 WPM recording on a second device. Start with a clean 10 WPM recording. If the bar moves but Gate stays off, increase sensitivity. If Gate stays ON during pauses, reduce sensitivity. Pulses should increase as dots and dashes finish. A video playing on the same device may not reach the microphone.</p>
+  <p class="muted" style="font-size:12px">Tip: Play clear Morse audio from a second device. Auto mode estimates the tone, sensitivity, and character speed. Allow a few characters for calibration; noisy or Farnsworth recordings may require manual adjustments. If the bar moves but Gate stays off, increase sensitivity. If Gate stays ON during pauses, reduce sensitivity. Pulses should increase as dots and dashes finish. A video playing on the same device may not reach the microphone.</p>
 </section><div class="feedback" aria-live="polite" id="feedback"></div></main><aside class="panel progress-panel"><h2>Operator Progress</h2><p class="muted">Session stats (no student information collected)</p><div class="stats"><div class="stat"><b id="correct">0</b><span>Correct</span></div><div class="stat"><b id="attempts">0</b><span>Attempts</span></div><div class="stat"><b id="streak">0</b><span>Current streak</span></div><div class="stat"><b id="accuracy">—</b><span>Accuracy</span></div></div><h3>Mission briefing</h3><p class="muted" id="brief">Start with individual characters, then decode a short transmission. CW means continuous wave, a common name for Morse code radio operation.</p><button id="reset">Reset session</button></aside></div><div class="footer">ARISS-themed educational CW practice • Audio starts after you interact with the page</div></div><script>
 const C={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..','0':'-----','1':'.----','2':'..---','3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.'};
 const keys=Object.keys(C),missions=['ISS','ARISS','RADIO','SPACE','CQ','73'];let mode='learn',target='A',count=0,correct=0,streak=0,pattern='',start=0,down=false,ctx=null,osc=null,gain=null,playToken=0,missionIndex=0,locked=false;
@@ -113,7 +113,7 @@ function score(ok){count++;if(ok){correct++;streak++}else streak=0;$('correct').
 function randomTarget(){let pool=mode==='mission'?missions:keys;return pool[Math.floor(Math.random()*pool.length)]}
 function choices(){let arr=[target];while(arr.length<4){let x=keys[Math.floor(Math.random()*keys.length)];if(!arr.includes(x))arr.push(x)}arr.sort(()=>Math.random()-.5);$('answers').innerHTML='';arr.forEach(x=>{let b=document.createElement('button');b.textContent=x;b.onclick=()=>{if(locked)return;locked=true;let ok=x===target;score(ok);$('feedback').textContent=ok?'Signal copied correctly!':'Not quite. Correct answer: '+target;$('signal').textContent=pretty(C[target]);setTimeout(()=>{if(mode==='decode')next()},1100)};$('answers').append(b)})}
 function next(){playToken++;toneOff();locked=false;pattern='';$('feedback').textContent='';target=randomTarget();$('signal').textContent=mode==='decode'?'?':mode==='transmit'?target:mode==='mission'?'Incoming transmission: '+('•'.repeat(target.length)):pretty(C[target]);if(mode==='decode')choices();if(mode==='mission'){$('answers').innerHTML='';let input=document.createElement('input');input.id='missionInput';input.placeholder='Type decoded message';input.autocomplete='off';input.style.cssText='padding:12px;background:#132e4c;border:1px solid #35618b;border-radius:9px;color:white;font:inherit;width:65%;min-width:160px';let b=document.createElement('button');b.textContent='Submit';b.onclick=()=>{if(locked)return;locked=true;let ok=input.value.trim().toUpperCase()===target;score(ok);$('feedback').textContent=ok?'Mission received!':'Message was: '+target;$('signal').textContent=target};input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();b.click()}});$('answers').append(input,b)}$('transmission').textContent='Your signal: —'}
-function setMode(m){if(mode==='live'&&m!=='live')stopLive();mode=m;$('messageBuilder').classList.toggle('hidden',m!=='learn');document.querySelectorAll('[data-guide]').forEach(g=>g.classList.toggle('selected',g.dataset.guide===m));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));$('learn').classList.toggle('hidden',m!=='learn');$('quiz').classList.toggle('hidden',m!=='decode'&&m!=='mission');$('send').classList.toggle('hidden',m!=='transmit');document.querySelector('#speed').parentElement.classList.toggle('hidden',m==='live');$('signal').classList.toggle('hidden',m==='live');$('feedback').classList.toggle('hidden',m==='live');$('live').classList.toggle('hidden',m!=='live');$('heading').textContent=({learn:'Learn Morse Code',decode:'Listen & Decode',transmit:'Transmit a Signal',mission:'Mission Challenge',live:'Live Morse Decoder'})[m];$('instructions').textContent=({learn:'Select a character or type a message, then play its Morse code.',decode:'Listen carefully, then identify the character.',transmit:'Key the displayed letter with the spacebar or on-screen button.',mission:'Decode the complete incoming message. Replay it as needed.',live:'Listen to a keyer or Morse practice audio through your microphone.'})[m];$('brief').textContent=m==='live'?'Use a practice oscillator or play Morse audio on a second device. The app listens locally and does not upload microphone audio.':m==='mission'?'Decode a short simulated ground-station transmission. The signal is fictional and not from the ISS.':'Build recognition through repeated listening and practice. Adjust the speed as you improve.';if(m==='live'){$('signal').textContent='♫';$('feedback').textContent='';$('liveWpm').textContent='Decoder timing: 10 WPM';if(livePulses===0&&liveHighCount>20)liveStatus('Continuous tone detected. Play spaced dots and dashes; if the gate stays ON during silence, lower sensitivity.');else if(livePulses>0)liveStatus('Detected '+livePulses+' Morse pulses. Listening for letter gaps…');}else next();if(m==='learn'){$('signal').textContent='· −';renderMessage()}}
+function setMode(m){if(mode==='live'&&m!=='live')stopLive();mode=m;$('messageBuilder').classList.toggle('hidden',m!=='learn');document.querySelectorAll('[data-guide]').forEach(g=>g.classList.toggle('selected',g.dataset.guide===m));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));$('learn').classList.toggle('hidden',m!=='learn');$('quiz').classList.toggle('hidden',m!=='decode'&&m!=='mission');$('send').classList.toggle('hidden',m!=='transmit');document.querySelector('#speed').parentElement.classList.toggle('hidden',m==='live');$('signal').classList.toggle('hidden',m==='live');$('feedback').classList.toggle('hidden',m==='live');$('live').classList.toggle('hidden',m!=='live');$('heading').textContent=({learn:'Learn Morse Code',decode:'Listen & Decode',transmit:'Transmit a Signal',mission:'Mission Challenge',live:'Live Morse Decoder'})[m];$('instructions').textContent=({learn:'Select a character or type a message, then play its Morse code.',decode:'Listen carefully, then identify the character.',transmit:'Key the displayed letter with the spacebar or on-screen button.',mission:'Decode the complete incoming message. Replay it as needed.',live:'Listen to a keyer or Morse practice audio through your microphone.'})[m];$('brief').textContent=m==='live'?'Use a practice oscillator or play Morse audio on a second device. The app listens locally and does not upload microphone audio.':m==='mission'?'Decode a short simulated ground-station transmission. The signal is fictional and not from the ISS.':'Build recognition through repeated listening and practice. Adjust the speed as you improve.';if(m==='live'){$('signal').textContent='♫';$('feedback').textContent='';$('liveWpm').textContent=liveDurations.length>=3?'Estimated speed: '+Math.round(1200/liveUnit())+' WPM':'Speed: calibrating…';if(livePulses===0&&liveHighCount>20)liveStatus('Continuous tone detected. Play spaced dots and dashes; if the gate stays ON during silence, lower sensitivity.');else if(livePulses>0)liveStatus('Detected '+livePulses+' Morse pulses. Listening for letter gaps…');}else next();if(m==='learn'){$('signal').textContent='· −';renderMessage()}}
 for(let k of keys){let b=document.createElement('div');b.innerHTML='<strong>'+k+'</strong><small>'+pretty(C[k])+'</small>';b.style.cursor='pointer';b.onclick=()=>{selectLearnCharacter(k);appendMessage(k);play(k)};$('learn').append(b)}
 // Message builder: letters selected from the grid are appended; typing also works.
 function selectLearnCharacter(k){if(!C[k])return;$('selectedLetter').textContent=k;$('selectedMorse').textContent=pretty(C[k]);$('signal').textContent=pretty(C[k]);$('feedback').textContent=''}
@@ -139,9 +139,21 @@ const LIVE_REVERSE=Object.fromEntries(Object.entries(C).map(([k,v])=>[v,k]));
 let liveStream=null,liveAudio=null,liveSource=null,liveAnalyser=null,liveTimer=null;
 let liveRunning=false,liveIsTone=false,liveLastEdge=0,liveSequence='',liveText='',liveLastGap='',liveToneHz=0,liveNoise=0;
 let liveLastSample=0,liveHighCount=0,liveLowCount=0,liveCandidate=0,livePulses=0,livePeakDb=-120;
-const liveUnit=()=>120; // Initial live decoder timing: 10 WPM; independent of learning modes.
+let liveDotMs=120,liveDurations=[],liveGapDurations=[],liveFloor=-100,liveThreshold=-84,liveCalibrated=false,liveLastDetectedAt=0;
+const liveUnit=()=>liveDotMs;
+function liveMedian(a){const b=[...a].sort((x,y)=>x-y);return b.length?b[Math.floor(b.length/2)]:0}
+function liveLearnTiming(duration){
+ if(duration<28||duration>1700)return;
+ liveDurations.push(duration);if(liveDurations.length>32)liveDurations.shift();
+ const ordered=[...liveDurations].sort((a,b)=>a-b);
+ // The shortest cluster is usually dots; use a robust lower quantile to avoid a few long dashes.
+ const candidate=liveMedian(ordered.slice(0,Math.max(1,Math.ceil(ordered.length*.45))));
+ if(ordered.length>=3){const estimate=Math.max(30,Math.min(400,candidate));liveDotMs=liveDotMs*.55+estimate*.45;}
+}
+function liveGapLimit(){return liveUnit()*2.35}
+function liveWordLimit(){return liveUnit()*5.5}
 function liveStatus(message){$('liveStatus').textContent=message}
-function liveResetTiming(){liveIsTone=false;liveLastEdge=performance.now();liveSequence='';liveLastGap='';liveHighCount=0;liveLowCount=0;liveCandidate=0;liveLastSample=0;livePulses=0;livePeakDb=-120;$('liveMorse').textContent='—';$('liveLamp').classList.remove('on');$('liveSignalText').textContent='No signal'}
+function liveResetTiming(){liveIsTone=false;liveLastEdge=performance.now();liveSequence='';liveLastGap='';liveHighCount=0;liveLowCount=0;liveCandidate=0;liveLastSample=0;livePulses=0;livePeakDb=-120;liveDotMs=120;liveDurations=[];liveGapDurations=[];liveFloor=-100;liveThreshold=-84;liveCalibrated=false;liveLastDetectedAt=0;$('liveMorse').textContent='—';$('liveLamp').classList.remove('on');$('liveSignalText').textContent='No signal'}
 function liveRender(){ $('liveOutput').textContent=liveText; $('liveMorse').textContent=liveSequence?pretty(liveSequence):'—'; }
 function liveCommit(){if(!liveSequence)return;const letter=LIVE_REVERSE[liveSequence]||'□';liveText+=letter;liveSequence='';liveRender()}
 function liveToneTransition(on,now){
@@ -149,11 +161,11 @@ function liveToneTransition(on,now){
  if(liveIsTone&&!on){
    // Ignore tiny clicks; otherwise classify dot or dash using the selected WPM.
    if(duration>=Math.max(25,liveUnit()*.23)){
-     liveSequence+=duration<liveUnit()*2?'.':'-';livePulses++;liveRender();
+     liveLearnTiming(duration);liveSequence+=duration<liveUnit()*2.05?'.':'-';livePulses++;liveRender();
    }
  }else if(!liveIsTone&&on&&liveLastEdge){
-   if(duration>=liveUnit()*6.4){liveCommit();if(liveText&&!liveText.endsWith(' '))liveText+=' ';liveRender()}
-   else if(duration>=liveUnit()*2.5)liveCommit();
+   if(duration>=liveWordLimit()){liveCommit();if(liveText&&!liveText.endsWith(' '))liveText+=' ';liveRender()}
+   else if(duration>=liveGapLimit())liveCommit();
  }
  liveIsTone=on;liveLastEdge=now;
  $('liveLamp').classList.toggle('on',on);$('liveSignalText').textContent=on?'Tone detected':'Waiting for tone';
@@ -173,19 +185,32 @@ function liveAnalyze(){
    // Prefer a previously tracked tone, but reacquire after a sufficiently stronger new tone.
    const peak=(liveToneHz&&locked.db>=wide.db-9)?locked:wide;
    bestDb=peak.db;bestHz=peak.hz;
-   if(bestDb>Number($('liveSensitivity').value))liveToneHz=liveToneHz?liveToneHz*.75+bestHz*.25:bestHz;
+   if(bestDb>liveThreshold+3)liveToneHz=liveToneHz?liveToneHz*.75+bestHz*.25:bestHz;
  }
  const displayedHz=manual?selectedHz:liveToneHz;
  $('liveFreqValue').textContent=(displayedHz?Math.round(displayedHz):'—')+' Hz';
  // Conservative initial threshold. The dB meter helps users adjust distance/volume.
- const threshold=Number($('liveSensitivity').value);const detected=bestDb>(liveIsTone?threshold-4:threshold+2);
+ const automatic=$('liveSensitivityMode').value==='auto';
+ // Track background when the gate is closed; do not train on strong tones.
+ if(!liveIsTone){
+   if(!liveCalibrated){liveFloor=bestDb;liveCalibrated=true;}
+   else if(bestDb<liveFloor+8){liveFloor=liveFloor*.96+bestDb*.04;}
+   else if(bestDb<liveFloor){liveFloor=liveFloor*.92+bestDb*.08;}
+ }
+ if(automatic){
+   const proposed=Math.max(-99,Math.min(-38,liveFloor+11));
+   liveThreshold=liveThreshold*.88+proposed*.12;
+   $('liveSensitivityValue').textContent='Auto '+Math.round(liveThreshold)+' dB';
+ }else liveThreshold=Number($('liveSensitivity').value);
+ const threshold=liveThreshold;
+ const detected=bestDb>(liveIsTone?threshold-3:threshold+3);
  const meter=Math.max(0,Math.min(100,(bestDb+95)*2.1));$('liveMeterFill').style.width=meter+'%';$('liveDiagnostic').textContent='Tone: '+(Number.isFinite(bestDb)?bestDb.toFixed(0)+' dB':'—')+' · Frequency: '+(Math.round(bestHz)||'—')+' Hz · Gate: '+(liveIsTone?'ON':'off')+' · Pulses: '+livePulses;
  if(detected){liveHighCount++;liveLowCount=0}else{liveLowCount++;liveHighCount=0}
  // Require two consistent frames to suppress brief background transients.
  if(!liveIsTone&&liveHighCount>=2)liveToneTransition(true,now);
  if(liveIsTone&&liveLowCount>=2)liveToneTransition(false,now);
- if(!liveIsTone&&liveLastEdge){const gap=now-liveLastEdge;if(gap>=liveUnit()*2.5&&liveSequence)liveCommit();if(gap>=liveUnit()*6.4&&liveText&&!liveText.endsWith(' ')){liveText+=' ';liveRender()}}
- $('liveWpm').textContent='Decoder timing: 10 WPM';if(livePulses===0&&liveHighCount>20)liveStatus('Continuous tone detected. Play spaced dots and dashes; if the gate stays ON during silence, lower sensitivity.');else if(livePulses>0)liveStatus('Detected '+livePulses+' Morse pulses. Listening for letter gaps…');
+ if(!liveIsTone&&liveLastEdge){const gap=now-liveLastEdge;if(gap>=liveGapLimit()&&liveSequence)liveCommit();if(gap>=liveWordLimit()&&liveText&&!liveText.endsWith(' ')){liveText+=' ';liveRender()}}
+ $('liveWpm').textContent=liveDurations.length>=3?'Estimated speed: '+Math.round(1200/liveUnit())+' WPM':'Speed: calibrating…';if(livePulses===0&&liveHighCount>20)liveStatus('Continuous tone detected. Play spaced dots and dashes; if the gate stays ON during silence, lower sensitivity.');else if(livePulses>0)liveStatus('Detected '+livePulses+' Morse pulses. Listening for letter gaps…');
 }
 async function startLive(){
  if(liveRunning)return;
@@ -212,6 +237,7 @@ $('liveStart').addEventListener('click',startLive);$('liveStop').addEventListene
 $('liveClear').addEventListener('click',()=>{liveText='';liveResetTiming();liveRender()});
 $('liveToneMode').addEventListener('change',()=>{const manual=$('liveToneMode').value==='manual';$('liveFreq').classList.toggle('hidden',!manual);$('liveFreqLabel').classList.toggle('hidden',!manual);liveToneHz=0;liveResetTiming();$('liveFreqValue').textContent=manual?$('liveFreq').value+' Hz':'— Hz'});
 $('liveSensitivity').addEventListener('input',()=>{$('liveSensitivityValue').textContent=$('liveSensitivity').value+' dB'});
+$('liveSensitivityMode').addEventListener('change',()=>{const manual=$('liveSensitivityMode').value==='manual';$('liveSensitivity').classList.toggle('hidden',!manual);$('liveSensitivityLabel').classList.toggle('hidden',!manual);$('liveSensitivityValue').textContent=manual?$('liveSensitivity').value+' dB':'Auto calibrating…';});
 $('liveFreq').addEventListener('input',()=>{$('liveFreqValue').textContent=$('liveFreq').value+' Hz';liveResetTiming()});
 $('speed').addEventListener('change',()=>{if(liveRunning)liveResetTiming()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&liveRunning)stopLive()});
